@@ -67,38 +67,20 @@ jobs:
           generate_release_notes: true
 
   publish-sqreen:
-    name: Publish binaries to sqreen.ai
-    needs: build
+    name: Sync binaries to sqreen.ai
+    needs: release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: main
-
-      - uses: actions/download-artifact@v5
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Stage release assets for sqreen.ai
+      - name: Trigger enterprise CDN sync
+        env:
+          GH_TOKEN: ${{ secrets.SQREEN_ENTERPRISE_PAT }}
         run: |
           VERSION="${GITHUB_REF_NAME}"
-          mkdir -p "frontend/public/releases/${VERSION}" "frontend/public/releases/latest"
-          cp artifacts/*.tar.gz "frontend/public/releases/${VERSION}/"
-          cp artifacts/*.tar.gz "frontend/public/releases/latest/"
-          printf '{"version":"%s"}\n' "$VERSION" > frontend/public/releases/manifest.json
-          ls -lh "frontend/public/releases/${VERSION}/"
-
-      - name: Commit and push release assets
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/public/releases/
-          if git diff --staged --quiet; then
-            echo "No release asset changes to publish."
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "SQREEN_ENTERPRISE_PAT not set — skip auto-sync."
+            echo "Run publish-proxy-release in sdk-bens/sqreen-enterprise with version=${VERSION}"
             exit 0
           fi
-          git commit -m "Publish ${GITHUB_REF_NAME} mcp-proxy binaries on sqreen.ai"
-          git push origin main
+          gh workflow run publish-proxy-release.yml \
+            --repo sdk-bens/sqreen-enterprise \
+            -f "version=${VERSION}"

@@ -32,5 +32,7 @@ Thumbs.db
 
 # --- Platform Testing Sidecars ---
 /mcp-proxy/examples/demo_plugin/target/
+mcp-proxy/dist/
+mcp-proxy/target/
 *.tar.gz
 bin/
